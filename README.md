@@ -38,10 +38,8 @@ Exemplos:
 
 ![Interface do Estoque IA](docs/interface.png)
 
-<!-- GIF da demo: docs/demo.gif -->
-
-Uma transcrição de execução real está em [docs/demo.md](docs/demo.md). O GIF será
-adicionado depois de uma gravação real da página ou do terminal.
+A imagem acima é uma execução real da página. Também há uma transcrição de terminal
+e API em [docs/demo.md](docs/demo.md).
 
 ## Arquitetura
 

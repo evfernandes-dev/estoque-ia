@@ -29,14 +29,3 @@ $ curl http://localhost:8000/resumo
 A página em `http://localhost:8000/` tem campo de pergunta, quatro exemplos,
 chips com as ferramentas usadas e um campo opcional de token. Ela usa
 `textContent` para inserir a resposta e não depende de CDN.
-
-## GIF
-
-O GIF de 15 a 25 segundos deve ser gravado com a página web ou o terminal e salvo
-em `docs/demo.gif`. Depois disso, troque o comentário HTML do README por:
-
-```markdown
-![Demonstracao](docs/demo.gif)
-```
-
-Não versione um GIF que não tenha sido gravado a partir de uma execução real.
