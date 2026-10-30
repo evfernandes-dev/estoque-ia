@@ -4,27 +4,39 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "estoque-ia"
-version = "0.1.0"
-description = "Agente de IA para consulta de estoque ficticio de farmacia basica de unidade de saude"
+version = "1.0.0"
+description = "Agente de IA com tool calling para consultar estoque ficticio de farmacia"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-dependencies = [
-  "anthropic",
-  "fastapi",
-  "uvicorn[standard]",
-  "python-dotenv",
+authors = [{name = "Emanuel Vitor Fernandes Nascimento"}]
+keywords = ["python", "llm", "tool-calling", "fastapi", "sqlite", "ollama"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
 ]
+dependencies = ["fastapi", "uvicorn[standard]", "python-dotenv"]
+
+[project.urls]
+Homepage = "https://github.com/evfernandes-dev/estoque-ia"
+Repository = "https://github.com/evfernandes-dev/estoque-ia"
+Issues = "https://github.com/evfernandes-dev/estoque-ia/issues"
 
 [project.optional-dependencies]
-dev = [
-  "pytest",
-  "httpx",
-  "ruff",
-]
+dev = ["pytest", "httpx", "ruff"]
+
+[project.scripts]
+estoque-ia = "estoque_ia.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+estoque_ia = ["static/*.html"]
 
 [tool.ruff]
 line-length = 100
