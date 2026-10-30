@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *.class
@@ -21,9 +21,15 @@ wheels/
 *.egg
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 .venv/
 venv/
 env/
 .env
+*.log
+.DS_Store
+Thumbs.db
 data/*.db
 !data/.gitkeep
