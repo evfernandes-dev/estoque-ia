@@ -1,5 +1,4 @@
-﻿import json
-import sqlite3
+import json
 from datetime import date
 
 from estoque_ia.db import conectar, criar_schema
@@ -14,7 +13,6 @@ from estoque_ia.ferramentas import (
     sem_saida,
 )
 from estoque_ia.seed import popular
-
 
 HOJE = date(2026, 6, 15)
 
@@ -32,7 +30,13 @@ def test_buscar_medicamento_variacoes(conn):
 def test_buscar_acento(conn):
     r = buscar_medicamento(conn, "acido folico", hoje=HOJE)
     assert r["encontrado"] is True
-    assert any("folic" in m["nome"].lower() or "acido" in m["nome"].lower() or "Ácido" in m["nome"] or "Acido" in m["nome"] for m in r["medicamentos"])
+    assert any(
+        "folic" in m["nome"].lower()
+        or "acido" in m["nome"].lower()
+        or "Ácido" in m["nome"]
+        or "Acido" in m["nome"]
+        for m in r["medicamentos"]
+    )
 
 
 def test_buscar_inexistente(conn):

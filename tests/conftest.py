@@ -5,7 +5,6 @@ import pytest
 from estoque_ia.db import conectar, criar_schema
 from estoque_ia.seed import popular
 
-
 HOJE = date(2026, 6, 15)
 
 

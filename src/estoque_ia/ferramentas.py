@@ -1,44 +1,45 @@
 import sqlite3
-import unicodedata
 from datetime import date, timedelta
+
+from estoque_ia.texto import normalizar
 
 
 class ErroFerramenta(ValueError):
-    pass
-
-
-def _normalizar(texto: str) -> str:
-    if texto is None:
-        return ""
-    nfkd = unicodedata.normalize("NFKD", str(texto))
-    sem_acento = "".join(c for c in nfkd if not unicodedata.combining(c))
-    return sem_acento.casefold()
+    """Erro de entrada ou de consulta que pode ser mostrado ao usuário."""
 
 
 def _hoje(h: date | None = None) -> date:
+    # Injetar a data deixa os testes determinísticos; em produção usa hoje.
     if h is None:
         return date.today()
     return h
 
 
 def buscar_medicamento(conn: sqlite3.Connection, nome: str, hoje: date | None = None) -> dict:
+    """Busca por nome sem diferenciar acento ou maiúscula e devolve até 5 itens.
+
+    O estoque atual é a soma dos lotes e inclui lotes vencidos, igual ao
+    restante do projeto.
+    """
     hoje = _hoje(hoje)
     if nome is None or str(nome).strip() == "":
         raise ErroFerramenta("Nome do medicamento nao pode estar vazio")
     if not isinstance(nome, str):
         raise ErroFerramenta("Nome do medicamento deve ser um texto")
-    alvo = _normalizar(nome)
+    alvo = normalizar(nome)
     cur = conn.cursor()
     cur.execute("SELECT id, nome, concentracao, categoria, estoque_minimo FROM medicamentos")
     candidatos = []
     for row in cur.fetchall():
-        if alvo in _normalizar(row["nome"]):
+        # A comparação é feita em Python porque o SQLite não ignora acentos.
+        if alvo in normalizar(row["nome"]):
             candidatos.append(dict(row))
     total_correspondencias = len(candidatos)
     candidatos = candidatos[:5]
     resultado_meds = []
     for med in candidatos:
         med_id = med["id"]
+        # COALESCE garante zero para medicamento sem nenhum lote.
         cur.execute(
             "SELECT COALESCE(SUM(quantidade), 0) as total FROM lotes WHERE medicamento_id = ?",
             (med_id,),
@@ -46,7 +47,8 @@ def buscar_medicamento(conn: sqlite3.Connection, nome: str, hoje: date | None = 
         estoque_atual = cur.fetchone()["total"]
         situacao = "abaixo do minimo" if estoque_atual < med["estoque_minimo"] else "adequado"
         cur.execute(
-            "SELECT numero_lote, quantidade, validade FROM lotes WHERE medicamento_id = ? ORDER BY validade",
+            "SELECT numero_lote, quantidade, validade FROM lotes "
+            "WHERE medicamento_id = ? ORDER BY validade",
             (med_id,),
         )
         lotes = []
@@ -83,6 +85,7 @@ def buscar_medicamento(conn: sqlite3.Connection, nome: str, hoje: date | None = 
 
 
 def itens_vencendo(conn: sqlite3.Connection, dias: int = 30, hoje: date | None = None) -> dict:
+    """Lotes com estoque que vencem entre hoje e hoje + dias."""
     hoje = _hoje(hoje)
     if not isinstance(dias, int) or isinstance(dias, bool) or dias < 1 or dias > 365:
         raise ErroFerramenta("dias deve ser um inteiro entre 1 e 365")
@@ -120,6 +123,7 @@ def itens_vencendo(conn: sqlite3.Connection, dias: int = 30, hoje: date | None =
 
 
 def itens_vencidos(conn: sqlite3.Connection, hoje: date | None = None) -> dict:
+    """Lotes vencidos que ainda têm quantidade em estoque."""
     hoje = _hoje(hoje)
     cur = conn.cursor()
     cur.execute(
@@ -149,6 +153,7 @@ def itens_vencidos(conn: sqlite3.Connection, hoje: date | None = None) -> dict:
 
 
 def abaixo_do_minimo(conn: sqlite3.Connection) -> dict:
+    """Medicamentos cuja soma dos lotes ficou abaixo do estoque mínimo."""
     cur = conn.cursor()
     cur.execute(
         """
@@ -179,6 +184,7 @@ def abaixo_do_minimo(conn: sqlite3.Connection) -> dict:
 def consumo_medio(
     conn: sqlite3.Connection, nome: str, meses: int = 3, hoje: date | None = None
 ) -> dict:
+    """Calcula saídas, média mensal e autonomia estimada de um medicamento."""
     hoje = _hoje(hoje)
     if nome is None or str(nome).strip() == "":
         raise ErroFerramenta("Nome do medicamento nao pode estar vazio")
@@ -197,7 +203,8 @@ def consumo_medio(
     data_ini = hoje - timedelta(days=meses * 30)
     cur = conn.cursor()
     cur.execute(
-        "SELECT COALESCE(SUM(quantidade), 0) as total FROM movimentacoes WHERE medicamento_id = ? AND tipo = 'saida' AND data >= ? AND data <= ?",
+        "SELECT COALESCE(SUM(quantidade), 0) as total FROM movimentacoes "
+        "WHERE medicamento_id = ? AND tipo = 'saida' AND data >= ? AND data <= ?",
         (med_id, data_ini.isoformat(), hoje.isoformat()),
     )
     total_saidas = cur.fetchone()["total"]
@@ -220,6 +227,7 @@ def consumo_medio(
 
 
 def sem_saida(conn: sqlite3.Connection, dias: int = 90, hoje: date | None = None) -> dict:
+    """Medicamentos com estoque e sem nenhuma saída no período."""
     hoje = _hoje(hoje)
     if not isinstance(dias, int) or isinstance(dias, bool) or dias < 1 or dias > 365:
         raise ErroFerramenta("dias deve ser um inteiro entre 1 e 365")
@@ -228,10 +236,17 @@ def sem_saida(conn: sqlite3.Connection, dias: int = 90, hoje: date | None = None
     cur.execute(
         """
         SELECT m.id, m.nome as medicamento,
-               COALESCE((SELECT SUM(l2.quantidade) FROM lotes l2 WHERE l2.medicamento_id = m.id), 0) as estoque_atual,
-               (SELECT MAX(data) FROM movimentacoes mv WHERE mv.medicamento_id = m.id AND mv.tipo = 'saida') as ultima_saida
+               COALESCE(
+                   (SELECT SUM(l2.quantidade) FROM lotes l2 WHERE l2.medicamento_id = m.id),
+                   0
+               ) as estoque_atual,
+               (
+                   SELECT MAX(data)
+                   FROM movimentacoes mv
+                   WHERE mv.medicamento_id = m.id AND mv.tipo = 'saida'
+               ) as ultima_saida
         FROM medicamentos m
-        """
+        """,
     )
     itens = []
     for row in cur.fetchall():
@@ -258,6 +273,7 @@ def sem_saida(conn: sqlite3.Connection, dias: int = 90, hoje: date | None = None
 
 
 def resumo_estoque(conn: sqlite3.Connection, hoje: date | None = None) -> dict:
+    """Números do topo da página; reutiliza as outras ferramentas."""
     hoje = _hoje(hoje)
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) as c FROM medicamentos")
