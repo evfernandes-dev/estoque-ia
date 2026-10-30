@@ -10,6 +10,19 @@ Agente de IA para consultar, em linguagem natural, o estoque fictício de uma fa
 
 > **Aviso:** Todos os dados são fictícios, gerados por script. Nunca utilize dados reais.
 
+## Início rápido
+
+Com Docker e Ollama instalados:
+
+```bash
+ollama pull llama3.2:1b
+docker compose up -d --build
+```
+
+Abra `http://localhost:8000`, escolha uma pergunta de exemplo e veja a resposta.
+As perguntas de exemplo funcionam até sem o Ollama; o modelo é necessário para
+perguntas livres. Para rodar sem Docker, siga [Como rodar](#como-rodar).
+
 ## O que é e para que serve
 
 O Estoque IA permite fazer perguntas sobre o estoque em português do Brasil e obter respostas baseadas em dados do banco SQLite. O agente escolhe a ferramenta adequada usando tool calling, valida entradas e nunca escreve no banco.
