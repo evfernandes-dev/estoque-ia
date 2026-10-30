@@ -50,7 +50,25 @@ def _gerar_numero_lote(rng: random.Random) -> str:
     return "L" + "".join(str(rng.randint(0, 9)) for _ in range(6))
 
 
+def _inserir_lote(
+    cur: sqlite3.Cursor,
+    med_id: int,
+    quantidade: int,
+    validade_iso: str,
+    rng: random.Random,
+) -> None:
+    cur.execute(
+        "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) VALUES(?,?,?,?)",
+        (med_id, _gerar_numero_lote(rng), quantidade, validade_iso),
+    )
+
+
 def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
+    """Gera os 30 medicamentos, lotes e movimentações dos últimos 180 dias.
+
+    A semente é passada para um random.Random local, então duas execuções com
+    a mesma semente produzem exatamente o mesmo banco.
+    """
     rng = random.Random(semente)
     cur = conn.cursor()
     try:
@@ -58,7 +76,8 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
             nome, concentracao, categoria = linha.split("|")
             minimo = rng.choice([x * 10 for x in range(4, 31)])
             cur.execute(
-                "INSERT INTO medicamentos(nome,concentracao,categoria,estoque_minimo) VALUES(?,?,?,?)",
+                "INSERT INTO medicamentos(nome,concentracao,categoria,estoque_minimo) "
+                "VALUES(?,?,?,?)",
                 (nome, concentracao, categoria, minimo),
             )
         conn.commit()
@@ -71,6 +90,8 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
         for nome, med in meds.items():
             med_id = med["id"]
             minimo = med["estoque_minimo"]
+
+            # Os grupos plantados abaixo são a verdade esperada dos testes.
             if nome in ABAIXO_MINIMO:
                 alvo = int(minimo * rng.uniform(0.3, 0.7))
                 q1 = max(0, alvo // 2)
@@ -78,37 +99,16 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
                 for qtd in [q1, q2]:
                     if qtd <= 0:
                         continue
-                    cur.execute(
-                        "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) VALUES(?,?,?,?)",
-                        (
-                            med_id,
-                            _gerar_numero_lote(rng),
-                            qtd,
-                            (hoje + timedelta(days=rng.randint(200, 400))).isoformat(),
-                        ),
-                    )
+                    validade = (hoje + timedelta(days=rng.randint(200, 400))).isoformat()
+                    _inserir_lote(cur, med_id, qtd, validade, rng)
             elif nome in VENCENDO_EM_30:
                 total = int(minimo * rng.uniform(1.6, 2.2))
-                cur.execute(
-                    "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) VALUES(?,?,?,?)",
-                    (
-                        med_id,
-                        _gerar_numero_lote(rng),
-                        total,
-                        (hoje + timedelta(days=rng.randint(5, 30))).isoformat(),
-                    ),
-                )
+                validade = (hoje + timedelta(days=rng.randint(5, 30))).isoformat()
+                _inserir_lote(cur, med_id, total, validade, rng)
             elif nome in VENCIDOS:
                 total = int(minimo * rng.uniform(1.6, 2.2))
-                cur.execute(
-                    "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) VALUES(?,?,?,?)",
-                    (
-                        med_id,
-                        _gerar_numero_lote(rng),
-                        total,
-                        (hoje - timedelta(days=rng.randint(1, 60))).isoformat(),
-                    ),
-                )
+                validade = (hoje - timedelta(days=rng.randint(1, 60))).isoformat()
+                _inserir_lote(cur, med_id, total, validade, rng)
             elif nome in SEM_SAIDA:
                 lotes_cnt = rng.randint(1, 2)
                 total = int(minimo * rng.uniform(1.8, 2.5))
@@ -119,15 +119,8 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
                     else:
                         qtd = restante // 2
                         restante -= qtd
-                    cur.execute(
-                        "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) VALUES(?,?,?,?)",
-                        (
-                            med_id,
-                            _gerar_numero_lote(rng),
-                            qtd,
-                            (hoje + timedelta(days=rng.randint(200, 500))).isoformat(),
-                        ),
-                    )
+                    validade = (hoje + timedelta(days=rng.randint(200, 500))).isoformat()
+                    _inserir_lote(cur, med_id, qtd, validade, rng)
             else:
                 lotes_cnt = rng.randint(1, 3)
                 total = int(minimo * rng.uniform(1.5, 3.0))
@@ -138,15 +131,8 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
                     else:
                         qtd = max(1, restante // (lotes_cnt - i))
                         restante -= qtd
-                    cur.execute(
-                        "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) VALUES(?,?,?,?)",
-                        (
-                            med_id,
-                            _gerar_numero_lote(rng),
-                            qtd,
-                            (hoje + timedelta(days=rng.randint(120, 720))).isoformat(),
-                        ),
-                    )
+                    validade = (hoje + timedelta(days=rng.randint(120, 720))).isoformat()
+                    _inserir_lote(cur, med_id, qtd, validade, rng)
         conn.commit()
     except Exception:
         conn.rollback()
@@ -160,13 +146,15 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
             nome = med["nome"]
             minimo = med["estoque_minimo"]
             if nome in SEM_SAIDA:
+                # Esses itens param de ter saída e entrada nos últimos 90 dias.
                 r2 = random.Random(semente + med_id)
                 ultima_saida = hoje - timedelta(days=r2.randint(100, 150))
                 d = hoje - timedelta(days=180)
                 while d <= ultima_saida:
                     qtd = max(1, int(minimo * r2.uniform(0.03, 0.12)))
                     cur.execute(
-                        "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) VALUES(?,?,?,?)",
+                        "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) "
+                        "VALUES(?,?,?,?)",
                         (med_id, "saida", qtd, d.isoformat()),
                     )
                     d += timedelta(days=7)
@@ -176,16 +164,21 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
                         continue
                     qtd = max(1, int(minimo * 0.3))
                     cur.execute(
-                        "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) VALUES(?,?,?,?)",
+                        "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) "
+                        "VALUES(?,?,?,?)",
                         (med_id, "entrada", qtd, d2.isoformat()),
                     )
                 continue
+
+            # Movimentação normal: uma saída por semana e uma entrada por mês,
+            # sempre com data <= hoje.
             r = random.Random(semente + med_id)
             d = hoje - timedelta(days=180)
             while d <= hoje:
                 qtd = max(1, int(minimo * r.uniform(0.03, 0.12)))
                 cur.execute(
-                    "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) VALUES(?,?,?,?)",
+                    "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) "
+                    "VALUES(?,?,?,?)",
                     (med_id, "saida", qtd, d.isoformat()),
                 )
                 d += timedelta(days=7)
@@ -195,7 +188,8 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
                     continue
                 qtd = max(1, int(minimo * r.uniform(0.2, 0.4)))
                 cur.execute(
-                    "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) VALUES(?,?,?,?)",
+                    "INSERT INTO movimentacoes(medicamento_id,tipo,quantidade,data) "
+                    "VALUES(?,?,?,?)",
                     (med_id, "entrada", qtd, d2.isoformat()),
                 )
         conn.commit()
@@ -204,7 +198,7 @@ def popular(conn: sqlite3.Connection, hoje: date, semente: int = 42) -> None:
         raise
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default=None)
     parser.add_argument("--semente", type=int, default=42)
@@ -216,8 +210,9 @@ def main(argv=None):
 
     db_path = Path(args.db)
     if db_path.exists() and not args.force:
+        # Sem --force, não encostamos no arquivo existente.
         print("Arquivo ja existe. Use --force para sobrescrever.")
-        raise SystemExit(1)
+        return 1
 
     if db_path.exists() and args.force:
         db_path.unlink()
@@ -235,7 +230,8 @@ def main(argv=None):
     c_mv = cur.fetchone()["c"]
     print(f"Medicamentos: {c_m}, Lotes: {c_l}, Movimentacoes: {c_mv}")
     conn.close()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

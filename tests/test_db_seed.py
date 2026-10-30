@@ -4,7 +4,6 @@ from datetime import date
 from estoque_ia.db import conectar, criar_schema
 from estoque_ia.seed import ABAIXO_MINIMO, SEM_SAIDA, VENCENDO_EM_30, VENCIDOS, popular
 
-
 HOJE = date(2026, 6, 15)
 
 
@@ -19,7 +18,8 @@ def test_fk_invalida_gera_integrityerror(conn):
     cur = conn.cursor()
     try:
         cur.execute(
-            "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) VALUES(999,'X',1,'2026-01-01')"
+            "INSERT INTO lotes(medicamento_id,numero_lote,quantidade,validade) "
+            "VALUES(999,'X',1,'2026-01-01')"
         )
         conn.commit()
         raise AssertionError
@@ -102,7 +102,10 @@ def test_sem_saida_ha_pelo_menos_90_dias(conn):
     for nome in SEM_SAIDA:
         cur.execute("SELECT id FROM medicamentos WHERE nome=?", (nome,))
         mid = cur.fetchone()["id"]
-        cur.execute("SELECT MAX(data) as ultima FROM movimentacoes WHERE medicamento_id=? AND tipo='saida'", (mid,))
+        cur.execute(
+            "SELECT MAX(data) as ultima FROM movimentacoes WHERE medicamento_id=? AND tipo='saida'",
+            (mid,),
+        )
         ultima = cur.fetchone()["ultima"]
         assert ultima is not None
         assert (HOJE - date.fromisoformat(ultima)).days >= 90
