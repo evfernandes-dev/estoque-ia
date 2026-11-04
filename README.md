@@ -245,11 +245,14 @@ Avaliação online com Ollama, no modo de produção (com roteamento determinís
 python -m estoque_ia.avaliacao --online --saida docs/avaliacao.md
 ```
 
-Resultado medido com `llama3.2:1b`: 12 de 12. Para medir apenas o LLM, sem o
-roteador, use `--sem-roteamento`. O último resultado medido nesse modo foi 6 de 12
-(50%) e está registrado em [docs/avaliacao-llm-puro.md](docs/avaliacao-llm-puro.md). Os números
+Resultado registrado em 2026-10-30 com `llama3.2:1b`: 12 de 12. Para medir apenas o
+LLM, sem o roteador, use `--sem-roteamento`. O resultado registrado nesse modo foi 6 de 12
+(50%) e está em [docs/avaliacao-llm-puro.md](docs/avaliacao-llm-puro.md). Os números
 não são escondidos: a diferença mostra quanto da confiabilidade vem do roteador e
 quanto vem do modelo local.
+
+A suíte de testes cobre o ciclo do agente, a API, a CLI, as ferramentas, o banco,
+a configuração e a consistência do README.
 
 A avaliação online requer Ollama em execução e o modelo configurado disponível localmente.
 
