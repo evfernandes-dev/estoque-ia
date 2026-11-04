@@ -4,11 +4,27 @@
 
 Agente de IA para consultar, em linguagem natural, o estoque fictício de uma farmácia básica de unidade de saúde.
 
+> **English summary:** An AI agent that answers natural-language questions about a fictional pharmacy inventory. The LLM runs locally with Ollama and calls validated, read-only Python tools that query SQLite. The project includes a FastAPI API, CLI, web UI, tests, offline evaluation, Docker and GitHub Actions CI.
+
 ![CI](https://github.com/evfernandes-dev/estoque-ia/actions/workflows/ci.yml/badge.svg)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
 
 > **Aviso:** Todos os dados são fictícios, gerados por script. Nunca utilize dados reais.
+>
+> **Status do projeto:** projeto de estudo e portfólio. Não é destinado a dados reais de pacientes nem a uso em produção.
+
+## Stack
+
+- Python 3.11+
+- FastAPI e Uvicorn
+- SQLite com acesso somente leitura pelo agente
+- Ollama com modelos locais (`llama3.2:1b` como padrão e `qwen2.5:3b` como opção)
+- pytest e Ruff
+- Docker e Docker Compose
+- GitHub Actions (CI)
+
+Nenhuma chave de API externa é necessária para o fluxo principal. O modelo é executado localmente.
 
 ## Início rápido
 
